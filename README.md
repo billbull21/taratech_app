@@ -1,17 +1,35 @@
-# taratech_app
+# Taratech App
 
-A new Flutter project.
+Aplikasi manajemen transaksi keuangan sederhana berbasis Flutter yang terhubung dengan Supabase sebagai backend.
 
-## Getting Started
+## Fitur
 
-This project is a starting point for a Flutter application.
+- **Lihat Transaksi** — Menampilkan daftar transaksi dari Supabase, diurutkan dari terbaru
+- **Tambah Transaksi** — Form untuk menginput nama, jumlah (dengan thousand separator), tanggal & waktu, dan kategori (Debit/Credit)
+- **Edit Transaksi** — Ubah data transaksi yang sudah ada
+- **Hapus Transaksi** — Hapus transaksi dengan konfirmasi dialog
+- **Filter Rentang Tanggal** — Filter transaksi berdasarkan tanggal mulai dan tanggal akhir, query langsung ke Supabase
 
-A few resources to get you started if this is your first Flutter project:
+## Tech Stack
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+- **Flutter** — UI framework
+- **Supabase** — Backend (PostgreSQL + REST API)
+- **supabase_flutter** — Dart SDK untuk Supabase
+- **intl** — Format tanggal dan angka
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+## Struktur Tabel Supabase
+
+```sql
+create table transactions (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  amount numeric not null,
+  date timestamptz not null,
+  category text not null,
+  created_at timestamptz default now()
+);
+```
+
+## Demo
+
+- [Demo Video](assets/2026-05-13%2020-00-15.mp4)
