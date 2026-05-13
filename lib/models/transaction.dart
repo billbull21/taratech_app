@@ -1,24 +1,24 @@
 class Transaction {
-  final String id;
+  final int id;
   final String name;
-  final double amount;
-  final DateTime datetime;
+  final int amount;
+  final DateTime date;
   final String category;
 
   Transaction({
     required this.id,
     required this.name,
     required this.amount,
-    required this.datetime,
+    required this.date,
     required this.category,
   });
 
   factory Transaction.fromJson(Map<String, dynamic> json) {
     return Transaction(
-      id: json['id'] as String,
+      id: json['id'] as int,
       name: json['name'] as String,
-      amount: (json['amount'] as num).toDouble(),
-      datetime: DateTime.parse(json['datetime'] as String),
+      amount: json['amount'] as int,
+      date: DateTime.parse(json['date'] as String),
       category: json['category'] as String,
     );
   }
@@ -27,7 +27,7 @@ class Transaction {
     return {
       'name': name,
       'amount': amount,
-      'datetime': datetime.toIso8601String(),
+      'date': date.toIso8601String(),
       'category': category,
     };
   }

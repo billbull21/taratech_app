@@ -23,6 +23,10 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
   @override
   void initState() {
     super.initState();
+    final now = DateTime.now();
+    _startDate = DateTime.now().subtract(Duration(days: now.day - 1));
+    _endDate = now;
+
     _fetchTransactions();
   }
 
@@ -37,15 +41,15 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
       if (_startDate != null) {
         final start =
             DateTime(_startDate!.year, _startDate!.month, _startDate!.day);
-        query = query.gte('datetime', start.toIso8601String());
+        query = query.gte('date', start.toIso8601String());
       }
       if (_endDate != null) {
         final end = DateTime(
             _endDate!.year, _endDate!.month, _endDate!.day, 23, 59, 59);
-        query = query.lte('datetime', end.toIso8601String());
+        query = query.lte('date', end.toIso8601String());
       }
 
-      final data = await query.order('datetime', ascending: false);
+      final data = await query.order('date', ascending: false);
 
       setState(() {
         _transactions =
@@ -84,15 +88,7 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
     await _fetchTransactions();
   }
 
-  void _clearFilter() {
-    setState(() {
-      _startDate = null;
-      _endDate = null;
-    });
-    _fetchTransactions();
-  }
-
-  Future<void> _deleteTransaction(String id) async {
+  Future<void> _deleteTransaction(int id) async {
     try {
       await _supabase.from('transactions').delete().eq('id', id);
       await _fetchTransactions();
@@ -108,9 +104,9 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
   Color _categoryColor(String category) {
     switch (category.toLowerCase()) {
       case 'debit':
-        return Colors.red.shade100;
-      case 'credit':
         return Colors.green.shade100;
+      case 'credit':
+        return Colors.red.shade100;
       default:
         return Colors.grey.shade100;
     }
@@ -213,7 +209,7 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
                                         ),
                                         Text(
                                           DateFormat('dd MMM yyyy, HH:mm')
-                                              .format(tx.datetime.toLocal()),
+                                              .format(tx.date.toLocal()),
                                           style: TextStyle(
                                               color: Colors.grey.shade500,
                                               fontSize: 12),
@@ -224,18 +220,26 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
                                         Text(
-                                          '${tx.category.toLowerCase() == 'credit' ? '+' : '-'}Rp ${NumberFormat('#,###').format(tx.amount)}',
+                                          '${tx.category.toLowerCase() == 'debit' ? '+' : '-'}Rp ${NumberFormat('#,###').format(tx.amount)}',
                                           style: TextStyle(
                                             color:
                                                 tx.category.toLowerCase() ==
-                                                        'credit'
+                                                        'debit'
                                                     ? Colors.green.shade700
                                                     : Colors.red.shade700,
                                             fontWeight: FontWeight.bold,
                                             fontSize: 14,
                                           ),
                                         ),
-                                        const SizedBox(width: 8),
+                                        const SizedBox(width: 4),
+                                        IconButton(
+                                          icon: const Icon(
+                                              Icons.edit_outlined,
+                                              color: Colors.blue,
+                                              size: 20),
+                                          onPressed: () => _openEdit(tx),
+                                          tooltip: 'Edit',
+                                        ),
                                         IconButton(
                                           icon: const Icon(
                                               Icons.delete_outline,
@@ -273,7 +277,6 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
 
   Widget _buildFilterBar() {
     final fmt = DateFormat('dd MMM yyyy');
-    final hasFilter = _startDate != null || _endDate != null;
     return Container(
       color: Colors.grey.shade100,
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -337,19 +340,19 @@ class _TransactionListScreenState extends State<TransactionListScreen> {
               ),
             ),
           ),
-          if (hasFilter) ...[
-            const SizedBox(width: 6),
-            IconButton(
-              icon: const Icon(Icons.close, size: 18, color: Colors.red),
-              onPressed: _clearFilter,
-              tooltip: 'Reset filter',
-              padding: EdgeInsets.zero,
-              constraints: const BoxConstraints(),
-            ),
-          ],
         ],
       ),
     );
+  }
+
+  Future<void> _openEdit(Transaction tx) async {
+    final updated = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (context) => AddTransactionScreen(transaction: tx),
+      ),
+    );
+    if (updated == true) await _fetchTransactions();
   }
 
   void _confirmDelete(BuildContext context, Transaction tx) {

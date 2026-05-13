@@ -2,14 +2,40 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../models/transaction.dart';
+
+class _ThousandSeparatorFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    final digitsOnly = newValue.text.replaceAll('.', '');
+    if (digitsOnly.isEmpty) return newValue.copyWith(text: '');
+    if (int.tryParse(digitsOnly) == null) return oldValue;
+
+    final buffer = StringBuffer();
+    for (int i = 0; i < digitsOnly.length; i++) {
+      if (i != 0 && (digitsOnly.length - i) % 3 == 0) buffer.write('.');
+      buffer.write(digitsOnly[i]);
+    }
+    final formatted = buffer.toString();
+    return newValue.copyWith(
+      text: formatted,
+      selection: TextSelection.collapsed(offset: formatted.length),
+    );
+  }
+}
 
 const List<String> _categories = [
-  'Debit',
-  'Credit',
+  'DEBIT',
+  'CREDIT',
 ];
 
 class AddTransactionScreen extends StatefulWidget {
-  const AddTransactionScreen({super.key});
+  final Transaction? transaction;
+
+  const AddTransactionScreen({super.key, this.transaction});
 
   @override
   State<AddTransactionScreen> createState() => _AddTransactionScreenState();
@@ -23,6 +49,21 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   DateTime _selectedDatetime = DateTime.now();
   String _selectedCategory = _categories.first;
   bool _isLoading = false;
+
+  bool get _isEditing => widget.transaction != null;
+
+  @override
+  void initState() {
+    super.initState();
+    final tx = widget.transaction;
+    if (tx != null) {
+      _nameController.text = tx.name;
+      _amountController.text =
+          NumberFormat('#,###', 'id').format(tx.amount.toInt());
+      _selectedDatetime = tx.date;
+      _selectedCategory = tx.category;
+    }
+  }
 
   @override
   void dispose() {
@@ -63,16 +104,26 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
     setState(() => _isLoading = true);
     try {
       final supabase = Supabase.instance.client;
-      await supabase.from('transactions').insert({
+      final payload = {
         'name': _nameController.text.trim(),
-        'amount': double.parse(_amountController.text.trim()),
-        'datetime': _selectedDatetime.toIso8601String(),
+        'amount': int.parse(_amountController.text.trim().replaceAll('.', '')),
+        'date': _selectedDatetime.toIso8601String(),
         'category': _selectedCategory,
-      });
+      };
+      if (_isEditing) {
+        await supabase
+            .from('transactions')
+            .update(payload)
+            .eq('id', widget.transaction!.id);
+      } else {
+        await supabase.from('transactions').insert(payload);
+      }
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Transaksi berhasil ditambahkan!'),
+          SnackBar(
+            content: Text(_isEditing
+                ? 'Transaksi berhasil diperbarui!'
+                : 'Transaksi berhasil ditambahkan!'),
             backgroundColor: Colors.green,
           ),
         );
@@ -96,7 +147,7 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Tambah Transaksi'),
+        title: Text(_isEditing ? 'Edit Transaksi' : 'Tambah Transaksi'),
         backgroundColor: Theme.of(context).colorScheme.primary,
         foregroundColor: Colors.white,
       ),
@@ -131,16 +182,13 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                   prefixIcon: Icon(Icons.attach_money),
                   border: OutlineInputBorder(),
                 ),
-                keyboardType:
-                    const TextInputType.numberWithOptions(decimal: true),
-                inputFormatters: [
-                  FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')),
-                ],
+                keyboardType: TextInputType.number,
+                inputFormatters: [_ThousandSeparatorFormatter()],
                 validator: (v) {
                   if (v == null || v.trim().isEmpty) {
                     return 'Jumlah wajib diisi';
                   }
-                  if (double.tryParse(v.trim()) == null) {
+                  if (int.tryParse(v.trim().replaceAll('.', '')) == null) {
                     return 'Jumlah tidak valid';
                   }
                   return null;
@@ -208,8 +256,11 @@ class _AddTransactionScreenState extends State<AddTransactionScreen> {
                               strokeWidth: 2, color: Colors.white),
                         )
                       : const Icon(Icons.save),
-                  label:
-                      Text(_isLoading ? 'Menyimpan...' : 'Simpan Transaksi'),
+                  label: Text(_isLoading
+                      ? 'Menyimpan...'
+                      : _isEditing
+                          ? 'Perbarui Transaksi'
+                          : 'Simpan Transaksi'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Theme.of(context).colorScheme.primary,
                     foregroundColor: Colors.white,
